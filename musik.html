@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Audio Visualizer - Balanced</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #030308;
+            color: #fff;
+            font-family: 'Montserrat', sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Center Circle UI */
+        .center-ui {
+            position: absolute;
+            z-index: 10;
+            width: 160px;
+            height: 160px;
+            background: #030308;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            /* Menggunakan cubic-bezier agar pantulannya terasa empuk, tidak brutal */
+            transition: transform 0.08s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.15s ease-out; 
+            box-shadow: 0 0 0 3px #030308, inset 0 0 30px rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .center-ui h1 {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 200;
+            letter-spacing: 4px;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .center-ui p {
+            margin: 4px 0 0 0;
+            font-size: 0.45rem;
+            letter-spacing: 5px;
+            color: #666;
+            font-weight: 400;
+            text-transform: uppercase;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Sidebar Control Panel */
+        .sidebar-controls {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            z-index: 20;
+        }
+
+        .author-text {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 300;
+            letter-spacing: 5px;
+            color: rgba(255, 255, 255, 0.35);
+            text-transform: uppercase;
+            white-space: nowrap;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            pointer-events: none;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.05);
+        }
+
+        .glass-player {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 40px;
+            padding: 30px 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .glass-player:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.04);
+            box-shadow: 0 30px 65px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.1);
+        }
+
+        .control-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.6);
+            transition: all 0.3s ease;
+        }
+
+        .control-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+            transition: transform 0.2s ease;
+        }
+
+        .control-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        .control-btn.play {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .control-btn.play:hover {
+            background: #fff;
+            color: #030308;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+        }
+
+        .progress-container {
+            width: 4px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+            position: relative;
+            cursor: pointer;
+            transition: width 0.2s ease;
+        }
+
+        .progress-container:hover { width: 6px; }
+
+        .progress-bar {
+            width: 100%;
+            height: 0%;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            background: linear-gradient(to top, #ff007f, #00f2fe);
+            border-radius: 3px;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+        }
+
+        .volume-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .volume-slider-wrapper {
+            height: 60px;
+            width: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+            position: relative;
+            cursor: pointer;
+            transition: width 0.2s ease;
+        }
+
+        .volume-slider-wrapper:hover { width: 6px; }
+
+        .volume-bar {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            background: #fff;
+            border-radius: 3px;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        }
+
+        .hint {
+            position: absolute;
+            top: 25px;
+            z-index: 20;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 0.65rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            font-weight: 300;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="hint">Klik lingkaran untuk upload lagu</div>
+
+    <div class="container">
+        <label class="center-ui" id="core-ui">
+            <h1>AUDIO</h1>
+            <p>VISUALIZER</p>
+            <input type="file" id="audio-input" accept="audio/*">
+        </label>
+        <canvas id="visualizer"></canvas>
+
+        <div class="sidebar-controls">
+            <div class="author-text">Dibuat oleh Zulfikar Achyar</div>
+            <div class="glass-player">
+                <button id="custom-upload" class="control-btn" title="Upload Lagu">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z" />
+                    </svg>
+                </button>
+                <button id="custom-play" class="control-btn play" title="Play">
+                    <svg id="play-icon" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                    <svg id="pause-icon" viewBox="0 0 24 24" style="display:none;">
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                    </svg>
+                </button>
+                <div class="progress-container" id="progress-container">
+                    <div id="progress-bar" class="progress-bar"></div>
+                </div>
+                <div class="volume-container">
+                    <button id="custom-mute" class="control-btn" title="Mute/Unmute">
+                        <svg id="volume-icon" viewBox="0 0 24 24">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+                        </svg>
+                    </button>
+                    <div class="volume-slider-wrapper" id="volume-slider-wrapper">
+                        <div id="volume-bar" class="volume-bar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audio-player"></audio>
+
+    <script>
+        const audioInput = document.getElementById('audio-input');
+        const audioPlayer = document.getElementById('audio-player');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        const coreUI = document.getElementById('core-ui');
+
+        const customUpload = document.getElementById('custom-upload');
+        const customPlay = document.getElementById('custom-play');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const customMute = document.getElementById('custom-mute');
+        const volumeIcon = document.getElementById('volume-icon');
+        const volumeWrapper = document.getElementById('volume-slider-wrapper');
+        const volumeBar = document.getElementById('volume-bar');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let audioCtx, analyser, dataArray;
+        let isPlaying = false;
+        let smoothData = null;
+
+        const totalRings = 55;
+        const historyBass = [];
+        const historyPunch = [];
+
+        const ranges = [
+            [0, 1], [2, 3], [4, 6], [7, 10], [11, 16], [17, 24],
+            [25, 34], [35, 48], [49, 68], [69, 96], [97, 135], [136, 190]
+        ];
+
+        // === LEFT EQUALIZER BARS ===
+        const EQ_BAR_COUNT = 64;
+        const eqSmooth = new Float32Array(EQ_BAR_COUNT);
+        const eqPeaks = new Float32Array(EQ_BAR_COUNT);
+
+        let currentPalette = generatePalette();
+        let targetPalette = generatePalette();
+        let palette = deepCopyPalette(currentPalette);
+        let paletteTimer = 0;
+        let paletteLerp = 1;
+
+        function generatePalette() {
+            const colors = [];
+            for (let i = 0; i < 3; i++) {
+                const h = Math.random() * 360;
+                const s = 75 + Math.random() * 25;
+                const l = 45 + Math.random() * 15;
+                colors.push(hslToRgb(h, s, l));
+            }
+            return colors;
+        }
+
+        function hslToRgb(h, s, l) {
+            s /= 100; l /= 100;
+            const k = n => (n + h / 30) % 12;
+            const a = s * Math.min(l, 1 - l);
+            const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+            return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+        }
+
+        function rgba(color, a) { return `rgba(${color[0]},${color[1]},${color[2]},${a})`; }
+        function deepCopyPalette(p) { return p.map(c => [c[0], c[1], c[2]]); }
+
+        function lerpPalettes(a, b, t) {
+            return a.map((c, i) => [
+                Math.round(c[0] + (b[i][0] - c[0]) * t),
+                Math.round(c[1] + (b[i][1] - c[1]) * t),
+                Math.round(c[2] + (b[i][2] - c[2]) * t)
+            ]);
+        }
+
+        function interpolate(a, b, t) {
+            const ft = t * Math.PI;
+            const f = (1 - Math.cos(ft)) * 0.5;
+            return a * (1 - f) + b * f;
+        }
+
+        customUpload.addEventListener('click', () => audioInput.click());
+
+        audioInput.addEventListener('change', function () {
+            if (this.files.length === 0) return;
+            audioPlayer.src = URL.createObjectURL(this.files[0]);
+
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 512;
+                
+                // [TITIK MANIS LATENCY] Cukup responsif tapi tidak bergetar kaku
+                analyser.smoothingTimeConstant = 0.3; 
+
+                const source = audioCtx.createMediaElementSource(audioPlayer);
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                smoothData = new Float32Array(analyser.frequencyBinCount);
+
+                for (let i = 0; i < totalRings; i++) {
+                    historyBass.push(0);
+                    historyPunch.push(0);
+                }
+            }
+
+            audioPlayer.play();
+            audioCtx.resume();
+            if (!isPlaying) {
+                isPlaying = true;
+                draw();
+            }
+        });
+
+        customPlay.addEventListener('click', () => {
+            if (audioPlayer.paused) audioPlayer.play();
+            else audioPlayer.pause();
+        });
+
+        audioPlayer.addEventListener('play', () => {
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+        });
+        audioPlayer.addEventListener('pause', () => {
+            playIcon.style.display = 'block';
+            pauseIcon.style.display = 'none';
+        });
+
+        let isDraggingProgress = false;
+        progressContainer.addEventListener('mousedown', (e) => {
+            isDraggingProgress = true;
+            if (!audioPlayer.duration) return;
+            const clickY = e.clientY - progressContainer.getBoundingClientRect().top;
+            audioPlayer.currentTime = Math.max(0, Math.min(1, 1 - (clickY / 120))) * audioPlayer.duration;
+        });
+
+        audioPlayer.addEventListener('timeupdate', () => {
+            if (!isDraggingProgress && audioPlayer.duration) {
+                progressBar.style.height = (audioPlayer.currentTime / audioPlayer.duration) * 100 + '%';
+            }
+        });
+
+        let isDraggingVolume = false;
+        volumeWrapper.addEventListener('mousedown', (e) => {
+            isDraggingVolume = true;
+            const clickY = e.clientY - volumeWrapper.getBoundingClientRect().top;
+            const vol = Math.max(0, Math.min(1, 1 - (clickY / 60)));
+            audioPlayer.volume = vol;
+            volumeBar.style.height = (vol * 100) + '%';
+            audioPlayer.muted = false;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDraggingProgress && audioPlayer.duration) {
+                const clickY = e.clientY - progressContainer.getBoundingClientRect().top;
+                audioPlayer.currentTime = Math.max(0, Math.min(1, 1 - (clickY / 120))) * audioPlayer.duration;
+            }
+            if (isDraggingVolume) {
+                const clickY = e.clientY - volumeWrapper.getBoundingClientRect().top;
+                audioPlayer.volume = Math.max(0, Math.min(1, 1 - (clickY / 60)));
+                volumeBar.style.height = (audioPlayer.volume * 100) + '%';
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDraggingProgress = false;
+            isDraggingVolume = false;
+        });
+
+        customMute.addEventListener('click', () => {
+            audioPlayer.muted = !audioPlayer.muted;
+        });
+
+        let time = 0;
+        let prevRawBass = 0;
+        let bassPunch = 0;
+        let rotationPhase = 0;
+
+        function draw() {
+            requestAnimationFrame(draw);
+
+            analyser.getByteFrequencyData(dataArray);
+            const binCount = dataArray.length;
+
+            for (let i = 0; i < binCount; i++) {
+                const raw = dataArray[i];
+                if (raw > smoothData[i]) {
+                    smoothData[i] += (raw - smoothData[i]) * 0.8; 
+                } else {
+                    smoothData[i] += (raw - smoothData[i]) * 0.2;
+                }
+            }
+
+            const currentBands = new Float32Array(12);
+            const bandBoosts = [2.4, 2.0, 1.7, 1.3, 1.1, 1.0, 0.95, 0.9, 0.85, 0.8, 0.8, 0.8];
+            for (let b = 0; b < 12; b++) {
+                let sum = 0;
+                for (let k = ranges[b][0]; k <= ranges[b][1]; k++) sum += smoothData[k];
+                currentBands[b] = Math.min(255, (sum / (ranges[b][1] - ranges[b][0] + 1)) * bandBoosts[b]);
+            }
+
+            let rawBassTotal = 0;
+            const beatBins = 4;
+            for (let i = 0; i < beatBins; i++) rawBassTotal += dataArray[i]; 
+            const rawAvgBass = rawBassTotal / beatBins;
+
+            // [PERBAIKAN SENSITIVITAS DETEKSI BEAT]
+            const beatDetected = (rawAvgBass - prevRawBass) > 10 && rawAvgBass > 45;
+            prevRawBass = rawAvgBass; 
+
+            if (beatDetected) bassPunch = 1.0; 
+            bassPunch *= 0.85; // Diperlambat sedikit penurunannya agar tidak bergetar aneh
+
+            let avgBass = 0;
+            for (let i = 0; i < beatBins; i++) avgBass += smoothData[i];
+            avgBass /= beatBins;
+
+            rotationPhase += 0.005 + (avgBass / 255) * 0.035 + bassPunch * 0.055;
+
+            historyBass.unshift(avgBass);
+            if (historyBass.length > totalRings) historyBass.pop();
+
+            historyPunch.unshift(bassPunch);
+            if (historyPunch.length > totalRings) historyPunch.pop();
+
+            paletteTimer++;
+            if (paletteTimer > 250 || (beatDetected && paletteTimer > 50)) {
+                currentPalette = deepCopyPalette(palette);
+                targetPalette = generatePalette();
+                paletteLerp = 0;
+                paletteTimer = 0;
+            }
+
+            if (paletteLerp < 1) {
+                paletteLerp += 0.01 + (avgBass / 255) * 0.006;
+                if (paletteLerp > 1) paletteLerp = 1;
+                palette = lerpPalettes(currentPalette, targetPalette, paletteLerp);
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#030308';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const baseRadius = 80 + (bassPunch * 10); // Lebar pantulan lingkaran dikecilkan
+
+            // ======================================
+            // === LEFT EQUALIZER BARS (Dinamis & Variatif) ===
+            // ======================================
+            const eqMargin = 80; 
+            const eqAreaH = canvas.height - eqMargin * 2; 
+            const barH = Math.max(2, (eqAreaH / EQ_BAR_COUNT) - 2);
+            const barGap = (eqAreaH - barH * EQ_BAR_COUNT) / (EQ_BAR_COUNT - 1);
+            
+            const eqLeft = 40; 
+            const numBeads = 12; 
+            const beadSpacing = 7;
+            const beadRadius = 1.6;
+
+            for (let i = 0; i < EQ_BAR_COUNT; i++) {
+                const logT = Math.pow(i / EQ_BAR_COUNT, 1.4); 
+                const dataIdx = Math.floor(logT * (binCount * 0.65));
+                const rawVal = smoothData[dataIdx] || 0;
+
+                // [PERBAIKAN KECEPATAN EQ KIRI]
+                if (rawVal > eqSmooth[i]) eqSmooth[i] += (rawVal - eqSmooth[i]) * 0.6; 
+                else eqSmooth[i] += (rawVal - eqSmooth[i]) * 0.2;
+
+                if (eqSmooth[i] > eqPeaks[i]) eqPeaks[i] = eqSmooth[i];
+                else {
+                    eqPeaks[i] -= 0.8;
+                    if (eqPeaks[i] < 0) eqPeaks[i] = 0;
+                }
+
+                // [PERBAIKAN RUMUS LONJAKAN TITIK] agar tidak selalu mentok/full
+                const norm = eqSmooth[i] / 255;
+                let variedNorm = Math.pow(norm, 1.6); // Membuat suara pelan/noise lebih tersaring
+                const freqBoost = 1.0 + (i / EQ_BAR_COUNT) * 1.5; // Pengali dikecilkan
+                
+                const activeBeadsVal = Math.min(1.0, variedNorm * freqBoost) * numBeads;
+
+                const y = (canvas.height - eqMargin) - (i * (barH + barGap));
+                const ct = i / EQ_BAR_COUNT;
+                let barColor;
+
+                if (ct < 0.5) {
+                    const t = ct * 2;
+                    barColor = [
+                        Math.round(palette[0][0] + (palette[1][0] - palette[0][0]) * t),
+                        Math.round(palette[0][1] + (palette[1][1] - palette[0][1]) * t),
+                        Math.round(palette[0][2] + (palette[1][2] - palette[0][2]) * t)
+                    ];
+                } else {
+                    const t = (ct - 0.5) * 2;
+                    barColor = [
+                        Math.round(palette[1][0] + (palette[2][0] - palette[1][0]) * t),
+                        Math.round(palette[1][1] + (palette[2][1] - palette[1][1]) * t),
+                        Math.round(palette[1][2] + (palette[2][2] - palette[1][2]) * t)
+                    ];
+                }
+
+                for (let b = 0; b < numBeads; b++) {
+                    const beadX = eqLeft + b * beadSpacing; 
+                    let beadAlpha = 0.03; 
+
+                    if (b < activeBeadsVal) {
+                        const diff = activeBeadsVal - b;
+                        if (diff >= 1) beadAlpha = 0.8;
+                        else beadAlpha = 0.03 + diff * 0.77;
+                    }
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(beadX, y - barH / 2, beadRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = rgba(barColor, beadAlpha);
+                    if (beadAlpha > 0.4) {
+                        ctx.shadowBlur = 5;
+                        ctx.shadowColor = rgba(barColor, beadAlpha);
+                    }
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                const peakBeadIndex = Math.min(1.0, Math.pow(eqPeaks[i]/255, 1.6) * freqBoost) * (numBeads - 1);
+                if (peakBeadIndex > activeBeadsVal + 0.2) {
+                    const peakX = eqLeft + peakBeadIndex * beadSpacing;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(peakX, y - barH / 2, beadRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = rgba(barColor, 0.9);
+                    ctx.shadowBlur = 6;
+                    ctx.shadowColor = rgba(barColor, 0.9);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            const glowStrength = avgBass / 255;
+            const punchGlow = glowStrength + bassPunch * 1.5; 
+            const glowRadius = baseRadius + 100 + punchGlow * 180; 
+
+            const glow = ctx.createRadialGradient(cx, cy, baseRadius * 0.3, cx, cy, glowRadius);
+            glow.addColorStop(0, rgba(palette[1], 0.25 * punchGlow));
+            glow.addColorStop(0.35, rgba(palette[0], 0.15 * punchGlow));
+            glow.addColorStop(0.65, rgba(palette[2], 0.08 * punchGlow));
+            glow.addColorStop(1, 'transparent');
+
+            ctx.fillStyle = glow;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.globalCompositeOperation = 'screen';
+
+            for (let ring = 0; ring < totalRings; ring++) {
+                const ringT = ring / totalRings;
+                const ringRadius = baseRadius + 4 + ring * 3.6; 
+                const alphaBase = (1 - ringT) * 0.65 + 0.02;
+
+                const colorShift = Math.sin(time * 0.15 + ringT * Math.PI) * 0.12;
+                let ct = Math.max(0, Math.min(1, ringT + colorShift));
+                
+                let color;
+                if (ct < 0.5) {
+                    const t = ct * 2;
+                    color = [
+                        Math.round(palette[0][0] + (palette[1][0] - palette[0][0]) * t),
+                        Math.round(palette[0][1] + (palette[1][1] - palette[0][1]) * t),
+                        Math.round(palette[0][2] + (palette[1][2] - palette[0][2]) * t)
+                    ];
+                } else {
+                    const t = (ct - 0.5) * 2;
+                    color = [
+                        Math.round(palette[1][0] + (palette[2][0] - palette[1][0]) * t),
+                        Math.round(palette[1][1] + (palette[2][1] - palette[1][1]) * t),
+                        Math.round(palette[1][2] + (palette[2][2] - palette[1][2]) * t)
+                    ];
+                }
+
+                ctx.beginPath();
+                ctx.globalAlpha = alphaBase * (0.35 + glowStrength * 0.65);
+                ctx.lineWidth = 0.7; 
+                ctx.strokeStyle = rgba(color, 1);
+                ctx.shadowBlur = 3;
+                ctx.shadowColor = rgba(color, 0.35);
+
+                const ringBands = currentBands; 
+                const ringBass = historyBass[ring] || avgBass;
+                const ringPunch = historyPunch[ring] || bassPunch;
+
+                const ringAngleOffset = ring * 0.008;
+                
+                for (let deg = 0; deg <= 360; deg += 4) {
+                    const angle = (deg * Math.PI / 180) + ringAngleOffset;
+                    let freqT = Math.pow(deg <= 180 ? deg / 180 : (360 - deg) / 180, 0.74);
+
+                    const pos = freqT * 11;
+                    const idxLow = Math.floor(pos);
+                    const idxHigh = Math.min(idxLow + 1, 11);
+                    const freqValue = interpolate(ringBands[idxLow], ringBands[idxHigh], pos - idxLow);
+
+                    const waveAmp = Math.pow(freqValue / 255, 1.1) * 200 * (0.5 + ringT * 2.5); 
+                    const punchAmp = ringPunch * 160 * (0.4 + ringT * 1.15); 
+
+                    const organic = Math.sin(deg * (2 + Math.sin(time * 0.4 + ring * 0.05) * 0.5) * (Math.PI / 180) + time * 0.1 + ring * 0.1) * (1.0 + (ringBass / 255) * 4 + ringPunch * 6) * (0.05 + ringT * 0.18);
+
+                    const r = ringRadius + waveAmp + punchAmp + organic;
+                    const x = cx + Math.cos(angle) * r;
+                    const y = cy + Math.sin(angle) * r;
+
+                    if (deg === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
+
+            ctx.globalCompositeOperation = 'screen';
+            ctx.globalAlpha = 0.75;
+            ctx.beginPath();
+            ctx.arc(cx, cy, baseRadius + 2, 0, Math.PI * 2);
+
+            const borderGrad = ctx.createLinearGradient(cx - baseRadius, cy - baseRadius, cx + baseRadius, cy + baseRadius);
+            borderGrad.addColorStop(0, rgba(palette[0], 0.85));
+            borderGrad.addColorStop(0.5, rgba(palette[1], 0.85));
+            borderGrad.addColorStop(1, rgba(palette[2], 0.85));
+
+            ctx.strokeStyle = borderGrad;
+            ctx.lineWidth = 2.5;
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = rgba(palette[1], 0.6);
+            ctx.stroke();
+
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+
+            // [PERBAIKAN SKALA LINGKARAN TENGAH] Skala pengali diturunkan agar lebih empuk
+            const uiScale = 1 + (avgBass / 255) * 0.1 + (bassPunch * 0.18);
+            coreUI.style.transform = `scale(${uiScale})`;
+            coreUI.style.boxShadow = `0 0 0 3px #030308, 0 0 ${20 + bassPunch * 40}px ${rgba(palette[1], 0.35 + bassPunch * 0.65)}`;
+
+            time += 0.015 + (avgBass * 0.0002);
+        }
+    </script>
+</body>
+
+</html>
